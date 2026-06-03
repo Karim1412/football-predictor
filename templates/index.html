@@ -1,0 +1,2457 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1.0" />
+    <title>FootballIQ — AI Match Predictor</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@400;500;600;700&family=Inter:wght@300;400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <style>
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      :root {
+        --bg: #05080f;
+        --s1: #0b1220;
+        --s2: #101928;
+        --s3: #16203a;
+        --border: rgba(255, 255, 255, 0.07);
+        --gold: #d4a843;
+        --gold2: #f0c866;
+        --home: #4f9cf9;
+        --away: #ff6635;
+        --draw: #9b72e8;
+        --green: #1fd46e;
+        --red: #f04f4f;
+        --yellow: #f5c518;
+        --text: #dde6f5;
+        --muted: #4a5872;
+        --muted2: #8898b0;
+        --F: "Bebas Neue", sans-serif;
+        --R: "Rajdhani", sans-serif;
+        --I: "Inter", sans-serif;
+      }
+      html,
+      body {
+        width: 100%;
+        min-height: 100vh;
+        background: var(--bg);
+        color: var(--text);
+        font-family: var(--R);
+        overflow-x: hidden;
+      }
+      button {
+        cursor: pointer;
+        font-family: var(--R);
+      }
+
+      /* ── BG ── */
+      .bg {
+        position: fixed;
+        inset: 0;
+        z-index: 0;
+        pointer-events: none;
+        overflow: hidden;
+      }
+      .bg-base {
+        position: absolute;
+        inset: 0;
+        background:
+          radial-gradient(
+            ellipse 120% 50% at 50% -5%,
+            rgba(12, 28, 80, 0.65) 0%,
+            transparent 65%
+          ),
+          linear-gradient(175deg, #060a1c 0%, #050810 55%, #040609 100%);
+      }
+      .bg-grid {
+        position: absolute;
+        inset: 0;
+        background-image:
+          linear-gradient(rgba(255, 255, 255, 0.012) 1px, transparent 1px),
+          linear-gradient(
+            90deg,
+            rgba(255, 255, 255, 0.012) 1px,
+            transparent 1px
+          );
+        background-size: 65px 65px;
+      }
+      .bg-vig {
+        position: absolute;
+        inset: 0;
+        background: radial-gradient(
+          ellipse at center,
+          transparent 30%,
+          rgba(0, 0, 0, 0.72) 100%
+        );
+      }
+      .sweep {
+        position: absolute;
+        top: 0;
+        left: -100%;
+        width: 55%;
+        height: 100%;
+        background: linear-gradient(
+          90deg,
+          transparent,
+          rgba(255, 255, 255, 0.009),
+          transparent
+        );
+        animation: sweep 9s linear infinite;
+      }
+      @keyframes sweep {
+        to {
+          left: 150%;
+        }
+      }
+      .pt {
+        position: absolute;
+        border-radius: 50%;
+        background: rgba(255, 255, 255, 0.55);
+        animation: ptdrift linear infinite;
+      }
+      @keyframes ptdrift {
+        0% {
+          transform: translateY(110vh);
+          opacity: 0;
+        }
+        5% {
+          opacity: 1;
+        }
+        95% {
+          opacity: 1;
+        }
+        100% {
+          transform: translateY(-8vh) translateX(12px);
+          opacity: 0;
+        }
+      }
+      .flash {
+        position: fixed;
+        inset: 0;
+        z-index: 9999;
+        background: #fff;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.12s;
+      }
+      .flash.on {
+        opacity: 0.09;
+      }
+
+      /* ── HUD ── */
+      .hud {
+        position: relative;
+        z-index: 20;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.55rem 1.5rem;
+        background: rgba(4, 6, 14, 0.92);
+        border-bottom: 1px solid rgba(212, 168, 67, 0.18);
+        backdrop-filter: blur(20px);
+        height: 52px;
+      }
+      .hud-l {
+        display: flex;
+        align-items: center;
+        gap: 0.55rem;
+      }
+      .hud-hex {
+        width: 28px;
+        height: 28px;
+        color: var(--gold);
+        flex-shrink: 0;
+      }
+      .hud-brand {
+        font-family: var(--F);
+        font-size: 1.45rem;
+        letter-spacing: 0.06em;
+        line-height: 1;
+      }
+      .hud-brand em {
+        color: var(--gold);
+        font-style: normal;
+      }
+      .hud-pill {
+        background: rgba(212, 168, 67, 0.08);
+        border: 1px solid rgba(212, 168, 67, 0.18);
+        font-family: var(--R);
+        font-size: 0.58rem;
+        font-weight: 700;
+        letter-spacing: 0.22em;
+        color: var(--muted2);
+        padding: 0.18rem 0.6rem;
+        border-radius: 20px;
+      }
+      .hud-r {
+        display: flex;
+        align-items: center;
+        gap: 1.1rem;
+      }
+      .hud-stat {
+        font-size: 0.65rem;
+        letter-spacing: 0.06em;
+        color: var(--muted);
+        text-align: center;
+      }
+      .hud-stat b {
+        display: block;
+        font-family: var(--F);
+        font-size: 0.95rem;
+        color: var(--gold);
+        letter-spacing: 0.03em;
+        line-height: 1.15;
+      }
+      .hud-div {
+        width: 1px;
+        height: 22px;
+        background: rgba(212, 168, 67, 0.14);
+      }
+      @media (max-width: 600px) {
+        .hud-r,
+        .hud-pill {
+          display: none;
+        }
+      }
+
+      /* ── STEPS BAR ── */
+      .steps-bar {
+        position: relative;
+        z-index: 10;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.6rem;
+        padding: 0.9rem 1rem;
+        background: rgba(6, 9, 18, 0.7);
+        border-bottom: 1px solid var(--border);
+        flex-wrap: wrap;
+      }
+      .step {
+        display: flex;
+        align-items: center;
+        gap: 0.35rem;
+        font-family: var(--R);
+        font-size: 0.72rem;
+        font-weight: 600;
+        letter-spacing: 0.07em;
+        color: var(--muted);
+        transition: color 0.3s;
+      }
+      .step.done {
+        color: var(--text);
+      }
+      .snum {
+        width: 18px;
+        height: 18px;
+        border-radius: 50%;
+        border: 1px solid var(--muted);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.58rem;
+        color: var(--muted);
+        flex-shrink: 0;
+        transition: all 0.3s;
+      }
+      .snum.done {
+        background: var(--gold);
+        border-color: var(--gold);
+        color: #000;
+      }
+      .sarr {
+        color: var(--muted);
+        font-size: 0.65rem;
+      }
+
+      /* ── ARENA ── */
+      .arena {
+        position: relative;
+        z-index: 5;
+        display: grid;
+        grid-template-columns: 1fr 170px 1fr;
+        min-height: calc(100vh - 52px - 48px);
+      }
+
+      /* ── PANEL ── */
+      .panel {
+        display: flex;
+        flex-direction: column;
+        padding: 1rem 0.9rem;
+        border-right: 1px solid var(--border);
+        position: relative;
+        overflow: hidden;
+        transition: background 0.4s;
+      }
+      .away-panel {
+        border-right: none;
+        border-left: 1px solid var(--border);
+      }
+      .panel::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        opacity: 0;
+        transition: opacity 0.4s;
+      }
+      .home-panel::after {
+        background: linear-gradient(90deg, var(--home), transparent);
+      }
+      .away-panel::after {
+        background: linear-gradient(270deg, var(--away), transparent);
+      }
+      .panel.sel::after {
+        opacity: 1;
+      }
+      .home-panel.sel {
+        background: linear-gradient(
+          180deg,
+          rgba(79, 156, 249, 0.03) 0%,
+          transparent 30%
+        );
+      }
+      .away-panel.sel {
+        background: linear-gradient(
+          180deg,
+          rgba(255, 102, 53, 0.03) 0%,
+          transparent 30%
+        );
+      }
+
+      /* role label */
+      .panel-role {
+        display: flex;
+        align-items: center;
+        gap: 0.45rem;
+        margin-bottom: 0.8rem;
+      }
+      .rdot {
+        width: 5px;
+        height: 5px;
+        border-radius: 50%;
+        background: var(--muted);
+        transition: background 0.3s;
+        flex-shrink: 0;
+      }
+      .home-panel.sel .rdot {
+        background: var(--home);
+      }
+      .away-panel.sel .rdot {
+        background: var(--away);
+      }
+      .rtxt {
+        font-family: var(--F);
+        font-size: 0.68rem;
+        letter-spacing: 0.28em;
+        color: var(--muted);
+        transition: color 0.3s;
+      }
+      .home-panel.sel .rtxt {
+        color: var(--home);
+      }
+      .away-panel.sel .rtxt {
+        color: var(--away);
+      }
+
+      /* ── CLUB STAGE ── */
+      .cs {
+        position: relative;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 1.1rem 0.7rem 0.9rem;
+        margin-bottom: 0.85rem;
+        background: var(--s1);
+        border: 1px solid var(--border);
+        overflow: hidden;
+        min-height: 162px;
+        justify-content: center;
+        transition:
+          border-color 0.4s,
+          box-shadow 0.4s;
+      }
+      .home-panel.sel .cs {
+        border-color: rgba(79, 156, 249, 0.28);
+        box-shadow: 0 0 24px rgba(79, 156, 249, 0.05) inset;
+      }
+      .away-panel.sel .cs {
+        border-color: rgba(255, 102, 53, 0.28);
+        box-shadow: 0 0 24px rgba(255, 102, 53, 0.05) inset;
+      }
+      .cs-shine {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          135deg,
+          rgba(255, 255, 255, 0.025) 0%,
+          transparent 60%
+        );
+        pointer-events: none;
+      }
+      .cs-top {
+        position: absolute;
+        top: 0;
+        left: 0;
+        right: 0;
+        height: 2px;
+        opacity: 0;
+        transition: opacity 0.4s;
+      }
+      .home-panel.sel .cs-top {
+        background: linear-gradient(
+          90deg,
+          transparent,
+          var(--home),
+          transparent
+        );
+        opacity: 1;
+      }
+      .away-panel.sel .cs-top {
+        background: linear-gradient(
+          90deg,
+          transparent,
+          var(--away),
+          transparent
+        );
+        opacity: 1;
+      }
+      .cs-glow {
+        position: absolute;
+        inset: 0;
+        opacity: 0;
+        transition: opacity 0.5s;
+        pointer-events: none;
+      }
+      .home-panel.sel .cs-glow {
+        background: radial-gradient(
+          ellipse at center,
+          rgba(79, 156, 249, 0.07) 0%,
+          transparent 70%
+        );
+        opacity: 1;
+      }
+      .away-panel.sel .cs-glow {
+        background: radial-gradient(
+          ellipse at center,
+          rgba(255, 102, 53, 0.07) 0%,
+          transparent 70%
+        );
+        opacity: 1;
+      }
+
+      /* logo */
+      .lw {
+        position: relative;
+        width: 82px;
+        height: 82px;
+        margin-bottom: 0.6rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .lr {
+        position: absolute;
+        inset: -6px;
+        border-radius: 50%;
+        border: 1.5px solid transparent;
+        opacity: 0;
+        transition: opacity 0.4s;
+      }
+      .lr2 {
+        position: absolute;
+        inset: -12px;
+        border-radius: 50%;
+        border: 1px solid transparent;
+        opacity: 0;
+        transition: opacity 0.4s;
+      }
+      .home-panel.sel .lr {
+        border-top-color: var(--home);
+        opacity: 0.55;
+        animation: spin 2.8s linear infinite;
+      }
+      .away-panel.sel .lr {
+        border-top-color: var(--away);
+        opacity: 0.55;
+        animation: spin 2.8s linear infinite;
+      }
+      .home-panel.sel .lr2 {
+        border-right-color: rgba(79, 156, 249, 0.22);
+        opacity: 1;
+        animation: spinr 5s linear infinite;
+      }
+      .away-panel.sel .lr2 {
+        border-right-color: rgba(255, 102, 53, 0.22);
+        opacity: 1;
+        animation: spinr 5s linear infinite;
+      }
+      @keyframes spin {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      @keyframes spinr {
+        to {
+          transform: rotate(-360deg);
+        }
+      }
+      .limg {
+        width: 72px;
+        height: 72px;
+        object-fit: contain;
+        position: relative;
+        z-index: 1;
+        filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.6));
+        transition: filter 0.3s;
+      }
+      .home-panel.sel .limg {
+        filter: drop-shadow(0 0 12px rgba(79, 156, 249, 0.4))
+          drop-shadow(0 4px 10px rgba(0, 0, 0, 0.6));
+      }
+      .away-panel.sel .limg {
+        filter: drop-shadow(0 0 12px rgba(255, 102, 53, 0.4))
+          drop-shadow(0 4px 10px rgba(0, 0, 0, 0.6));
+      }
+      .lph {
+        width: 72px;
+        height: 72px;
+        border-radius: 50%;
+        border: 2px dashed rgba(255, 255, 255, 0.1);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: var(--F);
+        font-size: 1.7rem;
+        color: var(--muted);
+        position: relative;
+        z-index: 1;
+      }
+      @keyframes lpop {
+        0% {
+          transform: scale(1);
+        }
+        40% {
+          transform: scale(1.16);
+        }
+        75% {
+          transform: scale(0.94);
+        }
+        100% {
+          transform: scale(1);
+        }
+      }
+      .lpop {
+        animation: lpop 0.4s cubic-bezier(0.2, 0, 0.2, 1);
+      }
+      .cs-name {
+        font-family: var(--F);
+        font-size: 1.18rem;
+        letter-spacing: 0.06em;
+        text-align: center;
+        line-height: 1.1;
+        transition: color 0.3s;
+      }
+      .home-panel.sel .cs-name {
+        color: var(--home);
+      }
+      .away-panel.sel .cs-name {
+        color: var(--away);
+      }
+      .cs-league {
+        font-size: 0.6rem;
+        letter-spacing: 0.14em;
+        color: var(--muted);
+        margin-top: 0.18rem;
+        text-align: center;
+      }
+      .fr {
+        display: flex;
+        gap: 0.22rem;
+        justify-content: center;
+        margin-top: 0.5rem;
+        min-height: 20px;
+      }
+      .fb {
+        width: 18px;
+        height: 18px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: var(--F);
+        font-size: 0.68rem;
+        border: 1px solid transparent;
+        border-radius: 3px;
+      }
+      .fb.W {
+        background: rgba(31, 212, 110, 0.12);
+        color: var(--green);
+        border-color: rgba(31, 212, 110, 0.28);
+      }
+      .fb.D {
+        background: rgba(245, 197, 24, 0.12);
+        color: var(--yellow);
+        border-color: rgba(245, 197, 24, 0.28);
+      }
+      .fb.L {
+        background: rgba(240, 79, 79, 0.12);
+        color: var(--red);
+        border-color: rgba(240, 79, 79, 0.28);
+      }
+
+      /* ── SEARCH ── */
+      .sw {
+        position: relative;
+        margin-bottom: 0.45rem;
+      }
+      .sw input {
+        width: 100%;
+        background: var(--s2);
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        padding: 0.5rem 0.7rem 0.5rem 2.1rem;
+        color: var(--text);
+        font-family: var(--I);
+        font-size: 0.82rem;
+        outline: none;
+        transition: border-color 0.2s;
+      }
+      .sw input:focus {
+        border-color: rgba(212, 168, 67, 0.32);
+      }
+      .sw input::placeholder {
+        color: var(--muted);
+      }
+      .si {
+        position: absolute;
+        left: 0.68rem;
+        top: 50%;
+        transform: translateY(-50%);
+        color: var(--muted);
+        font-size: 0.85rem;
+        pointer-events: none;
+      }
+
+      /* ── CLUB LIST ── */
+      .cl {
+        flex: 1;
+        overflow-y: auto;
+        border: 1px solid var(--border);
+        border-radius: 6px;
+        background: var(--s1);
+        max-height: calc(100vh - 420px);
+        min-height: 110px;
+      }
+      .cl::-webkit-scrollbar {
+        width: 3px;
+      }
+      .cl::-webkit-scrollbar-thumb {
+        background: rgba(212, 168, 67, 0.22);
+        border-radius: 2px;
+      }
+      .ci {
+        display: grid;
+        grid-template-columns: 26px 1fr auto;
+        align-items: center;
+        gap: 0.55rem;
+        padding: 0.47rem 0.7rem;
+        cursor: pointer;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.025);
+        transition:
+          background 0.1s,
+          padding-left 0.14s;
+      }
+      .ci:last-child {
+        border-bottom: none;
+      }
+      .ci:hover {
+        background: rgba(255, 255, 255, 0.04);
+        padding-left: 0.9rem;
+      }
+      .ci.active {
+        background: rgba(212, 168, 67, 0.07);
+        border-left: 2px solid var(--gold);
+        padding-left: 0.55rem;
+      }
+      .home-panel .ci.active {
+        background: rgba(79, 156, 249, 0.1);
+        border-left-color: var(--home);
+      }
+      .away-panel .ci.active {
+        background: rgba(255, 102, 53, 0.1);
+        border-left-color: var(--away);
+      }
+      .ci-logo {
+        width: 22px;
+        height: 22px;
+        object-fit: contain;
+        filter: drop-shadow(0 1px 3px rgba(0, 0, 0, 0.5));
+      }
+      .ci-fb {
+        width: 22px;
+        height: 22px;
+        border-radius: 3px;
+        background: var(--s3);
+        border: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: var(--F);
+        font-size: 0.56rem;
+        color: var(--muted);
+      }
+      .ci-info {
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+      .ci-name {
+        font-size: 0.8rem;
+        font-weight: 500;
+        font-family: var(--I);
+        color: var(--muted2);
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        transition: color 0.1s;
+      }
+      .ci-lg {
+        font-size: 0.58rem;
+        color: var(--muted);
+        font-family: var(--I);
+      }
+      .ci:hover .ci-name,
+      .ci.active .ci-name {
+        color: var(--text);
+      }
+      .home-panel .ci.active .ci-name {
+        color: var(--home);
+      }
+      .away-panel .ci.active .ci-name {
+        color: var(--away);
+      }
+      .ci-arr {
+        color: var(--muted);
+        font-size: 0.75rem;
+      }
+
+      /* ── CENTER ── */
+      .cc {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 1.4rem;
+        padding: 1.2rem 0.5rem;
+        position: relative;
+        z-index: 10;
+      }
+      .vs-b {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.35rem;
+      }
+      .vl {
+        width: 1px;
+        height: 46px;
+      }
+      .vl.t {
+        background: linear-gradient(
+          to bottom,
+          transparent,
+          rgba(212, 168, 67, 0.38)
+        );
+      }
+      .vl.b {
+        background: linear-gradient(
+          to top,
+          transparent,
+          rgba(212, 168, 67, 0.38)
+        );
+      }
+      .vo {
+        width: 54px;
+        height: 54px;
+        position: relative;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+      .vog {
+        position: absolute;
+        inset: 0;
+        border-radius: 50%;
+        background: radial-gradient(
+          circle,
+          rgba(212, 168, 67, 0.16) 0%,
+          transparent 70%
+        );
+        animation: vsp 2.2s ease-in-out infinite;
+      }
+      @keyframes vsp {
+        0%,
+        100% {
+          transform: scale(1);
+          opacity: 0.5;
+        }
+        50% {
+          transform: scale(1.12);
+          opacity: 1;
+        }
+      }
+      .vt {
+        font-family: var(--F);
+        font-size: 1.7rem;
+        color: var(--gold);
+        position: relative;
+        z-index: 1;
+        text-shadow: 0 0 16px rgba(212, 168, 67, 0.6);
+      }
+
+      /* KO button */
+      .ko {
+        width: 142px;
+        position: relative;
+        background: none;
+        border: none;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.12rem;
+        padding: 1rem 0.9rem;
+        overflow: hidden;
+        transition: transform 0.12s;
+      }
+      .ko:hover {
+        transform: scale(1.05);
+      }
+      .ko:active {
+        transform: scale(0.97);
+      }
+      .kobg {
+        position: absolute;
+        inset: 0;
+        background: linear-gradient(
+          135deg,
+          rgba(212, 168, 67, 0.13),
+          rgba(212, 168, 67, 0.03)
+        );
+        border: 1px solid rgba(212, 168, 67, 0.28);
+        border-radius: 6px;
+      }
+      .ko.ready .kobg {
+        animation: kop 1.6s ease-in-out infinite;
+      }
+      @keyframes kop {
+        0%,
+        100% {
+          box-shadow: 0 0 0 0 rgba(212, 168, 67, 0.22);
+        }
+        50% {
+          box-shadow: 0 0 0 11px rgba(212, 168, 67, 0);
+        }
+      }
+      .koball {
+        font-size: 1.5rem;
+        position: relative;
+        z-index: 1;
+        line-height: 1;
+      }
+      .ko.ready .koball {
+        animation: bsp 2.4s linear infinite;
+      }
+      @keyframes bsp {
+        to {
+          transform: rotate(360deg);
+        }
+      }
+      .kolbl {
+        font-family: var(--F);
+        font-size: 1.05rem;
+        letter-spacing: 0.18em;
+        color: var(--gold);
+        position: relative;
+        z-index: 1;
+      }
+      .kosub {
+        font-family: var(--R);
+        font-size: 0.56rem;
+        font-weight: 600;
+        letter-spacing: 0.15em;
+        color: var(--muted);
+        position: relative;
+        z-index: 1;
+      }
+      .ctip {
+        font-family: var(--I);
+        font-size: 0.66rem;
+        color: var(--muted);
+        text-align: center;
+        line-height: 1.5;
+        padding: 0 0.3rem;
+      }
+      .err {
+        font-family: var(--I);
+        font-size: 0.76rem;
+        color: var(--red);
+        text-align: center;
+        min-height: 1em;
+      }
+      @keyframes shk {
+        0%,
+        100% {
+          transform: translateX(0);
+        }
+        25% {
+          transform: translateX(-5px);
+        }
+        75% {
+          transform: translateX(5px);
+        }
+      }
+      .shk {
+        animation: shk 0.28s ease;
+      }
+
+      /* ── LOADING ── */
+      .ov {
+        position: fixed;
+        inset: 0;
+        z-index: 800;
+        background: rgba(4, 6, 14, 0.94);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        opacity: 0;
+        pointer-events: none;
+        transition: opacity 0.25s;
+        backdrop-filter: blur(12px);
+      }
+      .ov.show {
+        opacity: 1;
+        pointer-events: all;
+      }
+      .ovbox {
+        text-align: center;
+        padding: 2rem;
+      }
+      .ovball {
+        font-size: 2.4rem;
+        display: inline-block;
+        animation: roll 0.65s linear infinite;
+        margin-bottom: 0.9rem;
+      }
+      @keyframes roll {
+        0% {
+          transform: translateX(-22px) rotate(0);
+        }
+        50% {
+          transform: translateX(22px) rotate(360deg);
+        }
+        100% {
+          transform: translateX(-22px) rotate(720deg);
+        }
+      }
+      .ovtit {
+        font-family: var(--F);
+        font-size: 0.9rem;
+        letter-spacing: 0.3em;
+        color: var(--gold);
+        margin-bottom: 0.9rem;
+      }
+      .ovprog {
+        width: 250px;
+        height: 2px;
+        background: var(--s2);
+        margin: 0 auto 0.65rem;
+        border-radius: 2px;
+      }
+      .ovbar {
+        height: 100%;
+        width: 0%;
+        background: linear-gradient(90deg, var(--gold), var(--gold2));
+        transition: width 0.18s linear;
+        border-radius: 2px;
+        box-shadow: 0 0 8px rgba(212, 168, 67, 0.5);
+      }
+      .ovmsg {
+        font-family: var(--I);
+        font-size: 0.7rem;
+        color: var(--muted);
+        font-style: italic;
+      }
+
+      /* ── RESULT SCREEN ── */
+      .rs {
+        position: fixed;
+        inset: 0;
+        z-index: 700;
+        background: var(--bg);
+        overflow-y: auto;
+        opacity: 0;
+        pointer-events: none;
+        transform: translateY(38px);
+        transition:
+          opacity 0.42s cubic-bezier(0.2, 0, 0, 1),
+          transform 0.42s cubic-bezier(0.2, 0, 0, 1);
+      }
+      .rs.show {
+        opacity: 1;
+        pointer-events: all;
+        transform: none;
+      }
+      .rsi {
+        max-width: 1000px;
+        margin: 0 auto;
+        padding: 0 1.1rem 5rem;
+      }
+
+      /* result hud */
+      .rshud {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0.5rem 1rem;
+        background: rgba(4, 6, 14, 0.93);
+        border-bottom: 1px solid rgba(212, 168, 67, 0.18);
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        backdrop-filter: blur(16px);
+        margin-bottom: 1.5rem;
+      }
+      .rsbrand {
+        font-family: var(--F);
+        font-size: 1.15rem;
+        letter-spacing: 0.06em;
+      }
+      .rsbrand em {
+        color: var(--gold);
+        font-style: normal;
+      }
+      .backbtn {
+        background: none;
+        border: 1px solid rgba(212, 168, 67, 0.28);
+        color: var(--gold);
+        font-family: var(--F);
+        font-size: 0.76rem;
+        letter-spacing: 0.13em;
+        padding: 0.32rem 0.85rem;
+        border-radius: 4px;
+        transition:
+          background 0.18s,
+          color 0.18s;
+      }
+      .backbtn:hover {
+        background: var(--gold);
+        color: #000;
+      }
+
+      /* match header */
+      .mh {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        align-items: center;
+        gap: 0.8rem;
+        padding: 1.5rem 1rem 1.2rem;
+        background: var(--s1);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        margin-bottom: 1rem;
+        position: relative;
+        overflow: hidden;
+      }
+      .mh-gl {
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 42%;
+        background: linear-gradient(
+          90deg,
+          rgba(79, 156, 249, 0.07) 0%,
+          transparent 100%
+        );
+      }
+      .mh-gr {
+        position: absolute;
+        right: 0;
+        top: 0;
+        bottom: 0;
+        width: 42%;
+        background: linear-gradient(
+          270deg,
+          rgba(255, 102, 53, 0.07) 0%,
+          transparent 100%
+        );
+      }
+      .mh-t {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.5rem;
+        position: relative;
+        z-index: 1;
+      }
+      .mhl {
+        width: 64px;
+        height: 64px;
+        object-fit: contain;
+        filter: drop-shadow(0 0 14px rgba(0, 0, 0, 0.7));
+      }
+      .mhlf {
+        width: 64px;
+        height: 64px;
+        border-radius: 50%;
+        background: var(--s2);
+        border: 2px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: var(--F);
+        font-size: 1.3rem;
+        color: var(--muted);
+      }
+      .mhn {
+        font-family: var(--F);
+        font-size: 0.88rem;
+        letter-spacing: 0.07em;
+        text-align: center;
+        line-height: 1.15;
+      }
+      .mh-ht .mhn {
+        color: var(--home);
+      }
+      .mh-at .mhn {
+        color: var(--away);
+      }
+      .mhc {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.35rem;
+        position: relative;
+        z-index: 1;
+      }
+      .mhvs {
+        font-family: var(--F);
+        font-size: 1rem;
+        color: var(--muted);
+      }
+
+      /* verdict */
+      .vbadge {
+        padding: 0.45rem 1.3rem;
+        font-family: var(--F);
+        font-size: 1.4rem;
+        letter-spacing: 0.05em;
+        border: 1px solid transparent;
+        border-radius: 5px;
+        text-align: center;
+        white-space: nowrap;
+      }
+      .vh {
+        color: var(--home);
+        background: rgba(79, 156, 249, 0.1);
+        border-color: rgba(79, 156, 249, 0.28);
+        text-shadow: 0 0 18px rgba(79, 156, 249, 0.4);
+      }
+      .vd {
+        color: var(--draw);
+        background: rgba(155, 114, 232, 0.1);
+        border-color: rgba(155, 114, 232, 0.28);
+        text-shadow: 0 0 18px rgba(155, 114, 232, 0.4);
+      }
+      .va {
+        color: var(--away);
+        background: rgba(255, 102, 53, 0.1);
+        border-color: rgba(255, 102, 53, 0.28);
+        text-shadow: 0 0 18px rgba(255, 102, 53, 0.4);
+      }
+      .ctag {
+        font-family: var(--R);
+        font-size: 0.6rem;
+        font-weight: 700;
+        letter-spacing: 0.17em;
+        color: var(--muted);
+        border: 1px solid rgba(212, 168, 67, 0.2);
+        padding: 0.15rem 0.6rem;
+        border-radius: 20px;
+      }
+
+      /* ── PROB RINGS ── */
+      .probs {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 0.85rem;
+        margin-bottom: 1rem;
+      }
+      .pc {
+        background: var(--s1);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 1rem 0.7rem;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.5rem;
+        transition:
+          border-color 0.4s,
+          box-shadow 0.4s;
+      }
+      .pc.winner-h {
+        border-color: rgba(79, 156, 249, 0.3);
+        box-shadow: 0 0 18px rgba(79, 156, 249, 0.06);
+      }
+      .pc.winner-d {
+        border-color: rgba(155, 114, 232, 0.3);
+        box-shadow: 0 0 18px rgba(155, 114, 232, 0.06);
+      }
+      .pc.winner-a {
+        border-color: rgba(255, 102, 53, 0.3);
+        box-shadow: 0 0 18px rgba(255, 102, 53, 0.06);
+      }
+      .pclbl {
+        font-family: var(--R);
+        font-size: 0.58rem;
+        font-weight: 700;
+        letter-spacing: 0.2em;
+        color: var(--muted);
+        text-align: center;
+      }
+      .rw {
+        position: relative;
+        width: 94px;
+        height: 94px;
+      }
+      .pring {
+        width: 100%;
+        height: 100%;
+        transform: rotate(-90deg);
+      }
+      .prbg {
+        fill: none;
+        stroke: var(--s2);
+        stroke-width: 8;
+      }
+      .prfill {
+        fill: none;
+        stroke-width: 8;
+        stroke-linecap: round;
+        stroke-dasharray: 0 314;
+        transition: stroke-dasharray 1.2s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .prnum {
+        position: absolute;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        font-family: var(--F);
+        font-size: 1.28rem;
+        letter-spacing: -0.01em;
+      }
+      .ph-c .prfill,
+      .ph-c .prnum {
+        stroke: var(--home);
+        color: var(--home);
+      }
+      .pd-c .prfill,
+      .pd-c .prnum {
+        stroke: var(--draw);
+        color: var(--draw);
+      }
+      .pa-c .prfill,
+      .pa-c .prnum {
+        stroke: var(--away);
+        color: var(--away);
+      }
+      .pctag {
+        font-family: var(--R);
+        font-size: 0.65rem;
+        font-weight: 600;
+        letter-spacing: 0.06em;
+        color: var(--muted2);
+        text-align: center;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        max-width: 100%;
+      }
+
+      /* ── CARD GRID ── */
+      .cgrid {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 0.85rem;
+        margin-bottom: 0.85rem;
+      }
+      .cwide {
+        grid-column: 1/-1;
+      }
+      .card {
+        background: var(--s1);
+        border: 1px solid var(--border);
+        border-radius: 10px;
+        padding: 1rem;
+      }
+      .ch {
+        font-family: var(--F);
+        font-size: 0.65rem;
+        letter-spacing: 0.2em;
+        color: var(--gold);
+        border-bottom: 1px solid rgba(212, 168, 67, 0.12);
+        padding-bottom: 0.5rem;
+        margin-bottom: 0.85rem;
+        display: flex;
+        align-items: center;
+        gap: 0.4rem;
+      }
+      .chsub {
+        font-family: var(--R);
+        font-size: 0.56rem;
+        font-weight: 500;
+        letter-spacing: 0.1em;
+        color: var(--muted);
+        margin-left: 0.2rem;
+      }
+
+      /* form */
+      .fcrow {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        margin-bottom: 0.5rem;
+      }
+      .fcrow:last-child {
+        margin-bottom: 0;
+      }
+      .fcli {
+        width: 20px;
+        height: 20px;
+        object-fit: contain;
+        flex-shrink: 0;
+      }
+      .fclif {
+        width: 20px;
+        height: 20px;
+        border-radius: 3px;
+        background: var(--s3);
+        border: 1px solid var(--border);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-family: var(--F);
+        font-size: 0.52rem;
+        color: var(--muted);
+      }
+      .fcn {
+        font-family: var(--I);
+        font-size: 0.76rem;
+        color: var(--muted2);
+        min-width: 78px;
+        font-weight: 500;
+      }
+      .fcbd {
+        display: flex;
+        gap: 0.2rem;
+        flex: 1;
+      }
+
+      /* stats */
+      .strow {
+        display: grid;
+        grid-template-columns: 42px 1fr 42px;
+        align-items: center;
+        gap: 0.45rem;
+        margin-bottom: 0.5rem;
+      }
+      .strow:last-child {
+        margin-bottom: 0;
+      }
+      .sthv {
+        font-family: var(--F);
+        font-size: 0.88rem;
+        color: var(--home);
+        text-align: right;
+      }
+      .stav {
+        font-family: var(--F);
+        font-size: 0.88rem;
+        color: var(--away);
+        text-align: left;
+      }
+      .stctr {
+        display: flex;
+        flex-direction: column;
+        gap: 0.2rem;
+        align-items: center;
+      }
+      .stk {
+        font-family: var(--I);
+        font-size: 0.6rem;
+        color: var(--muted);
+        text-align: center;
+      }
+      .stbar {
+        display: flex;
+        height: 4px;
+        background: var(--s2);
+        border-radius: 3px;
+        overflow: hidden;
+        width: 100%;
+      }
+      .stbh {
+        height: 100%;
+        background: var(--home);
+        border-radius: 3px 0 0 3px;
+        width: 0%;
+        margin-left: auto;
+        transition: width 1.1s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+      .stba {
+        height: 100%;
+        background: var(--away);
+        border-radius: 0 3px 3px 0;
+        width: 0%;
+        transition: width 1.1s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      /* h2h summary */
+      .h2hsum {
+        display: grid;
+        grid-template-columns: 1fr auto 1fr;
+        align-items: center;
+        gap: 0.45rem;
+        margin-bottom: 0.85rem;
+        background: var(--s2);
+        border-radius: 7px;
+        padding: 0.6rem 0.9rem;
+      }
+      .h2hst {
+        display: flex;
+        flex-direction: column;
+        gap: 0.12rem;
+      }
+      .h2hst.hl {
+        text-align: left;
+        color: var(--home);
+      }
+      .h2hst.al {
+        text-align: right;
+        color: var(--away);
+      }
+      .h2hw {
+        font-family: var(--F);
+        font-size: 1.7rem;
+        letter-spacing: 0.02em;
+      }
+      .h2hwl {
+        font-size: 0.56rem;
+        letter-spacing: 0.14em;
+        color: var(--muted);
+      }
+      .h2hsc {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 0.08rem;
+      }
+      .h2hd {
+        font-family: var(--F);
+        font-size: 1.15rem;
+        color: var(--draw);
+      }
+      .h2hdl {
+        font-size: 0.52rem;
+        letter-spacing: 0.14em;
+        color: var(--muted);
+      }
+
+      /* h2h visual bar */
+      .h2hbar {
+        display: flex;
+        height: 5px;
+        border-radius: 3px;
+        overflow: hidden;
+        margin-bottom: 0.85rem;
+      }
+      .h2hbh {
+        background: var(--home);
+        transition: width 1s ease;
+      }
+      .h2hbd {
+        background: var(--draw);
+        transition: width 1s ease;
+      }
+      .h2hba {
+        background: var(--away);
+        transition: width 1s ease;
+      }
+
+      /* h2h matches */
+      .h2hlist {
+        display: flex;
+        flex-direction: column;
+        gap: 0.4rem;
+      }
+      .h2hem {
+        font-family: var(--I);
+        font-size: 0.8rem;
+        color: var(--muted);
+        text-align: center;
+        padding: 1.2rem;
+        border: 1px dashed rgba(255, 255, 255, 0.06);
+        border-radius: 6px;
+      }
+      .h2hr {
+        display: grid;
+        grid-template-columns: 90px 1fr auto auto 85px;
+        align-items: center;
+        gap: 0.55rem;
+        padding: 0.5rem 0.7rem;
+        background: var(--s2);
+        border-radius: 6px;
+        border-left: 2px solid var(--muted);
+        animation: hsin 0.3s ease both;
+      }
+      .h2hr.Win {
+        border-left-color: var(--green);
+      }
+      .h2hr.Draw {
+        border-left-color: var(--yellow);
+      }
+      .h2hr.Loss {
+        border-left-color: var(--red);
+      }
+      @keyframes hsin {
+        from {
+          opacity: 0;
+          transform: translateX(-6px);
+        }
+        to {
+          opacity: 1;
+          transform: none;
+        }
+      }
+      .h2hdate {
+        font-family: var(--I);
+        font-size: 0.65rem;
+        color: var(--muted);
+      }
+      .h2hmatch {
+        display: flex;
+        align-items: center;
+        gap: 0.3rem;
+        font-family: var(--I);
+        font-size: 0.76rem;
+        flex-wrap: wrap;
+      }
+      .h2hht {
+        color: var(--home);
+        font-weight: 600;
+        font-size: 0.72rem;
+      }
+      .h2hat {
+        color: var(--away);
+        font-weight: 600;
+        font-size: 0.72rem;
+      }
+      .h2hsc2 {
+        font-family: var(--F);
+        font-size: 0.88rem;
+        color: var(--text);
+        background: var(--s3);
+        padding: 0.06rem 0.32rem;
+        border-radius: 3px;
+        border: 1px solid var(--border);
+        white-space: nowrap;
+      }
+      .h2hbdg {
+        font-family: var(--F);
+        font-size: 0.62rem;
+        letter-spacing: 0.07em;
+        padding: 0.15rem 0.4rem;
+        border-radius: 3px;
+        text-align: center;
+        white-space: nowrap;
+      }
+      .h2hbdg.Win {
+        background: rgba(31, 212, 110, 0.12);
+        color: var(--green);
+      }
+      .h2hbdg.Draw {
+        background: rgba(245, 197, 24, 0.12);
+        color: var(--yellow);
+      }
+      .h2hbdg.Loss {
+        background: rgba(240, 79, 79, 0.12);
+        color: var(--red);
+      }
+      .h2hcomp {
+        font-family: var(--F);
+        font-size: 0.55rem;
+        letter-spacing: 0.07em;
+        padding: 0.18rem 0.42rem;
+        border-radius: 3px;
+        background: rgba(255, 255, 255, 0.06);
+        color: var(--muted);
+        white-space: nowrap;
+        text-transform: uppercase;
+      }
+      .h2hnote {
+        font-family: var(--I);
+        font-size: 0.68rem;
+        color: var(--muted);
+        text-align: center;
+        margin-top: 0.6rem;
+        font-style: italic;
+        padding: 0.5rem;
+        background: rgba(212, 168, 67, 0.04);
+        border-radius: 5px;
+        border: 1px solid rgba(212, 168, 67, 0.1);
+      }
+
+      .backbot {
+        display: block;
+        margin: 2rem auto 0;
+        background: none;
+        border: 1px solid rgba(212, 168, 67, 0.28);
+        color: var(--gold);
+        font-family: var(--F);
+        font-size: 0.82rem;
+        letter-spacing: 0.15em;
+        padding: 0.6rem 2rem;
+        border-radius: 5px;
+        transition:
+          background 0.18s,
+          color 0.18s;
+      }
+      .backbot:hover {
+        background: var(--gold);
+        color: #000;
+      }
+
+      /* demo badge */
+      .dbadge {
+        position: fixed;
+        bottom: 0.85rem;
+        right: 0.85rem;
+        z-index: 900;
+        background: rgba(212, 168, 67, 0.1);
+        border: 1px solid rgba(212, 168, 67, 0.28);
+        color: var(--gold);
+        font-family: var(--R);
+        font-size: 0.62rem;
+        font-weight: 700;
+        letter-spacing: 0.12em;
+        padding: 0.25rem 0.65rem;
+        border-radius: 20px;
+      }
+
+      /* ── RESPONSIVE ── */
+      @media (max-width: 840px) {
+        .arena {
+          grid-template-columns: 1fr;
+          min-height: auto;
+        }
+        .panel {
+          border-right: none;
+          border-bottom: 1px solid var(--border);
+          max-height: 400px;
+        }
+        .away-panel {
+          border-left: none;
+        }
+        .cl {
+          max-height: 140px;
+        }
+        .cc {
+          flex-direction: row;
+          flex-wrap: wrap;
+          justify-content: center;
+          padding: 0.85rem;
+          gap: 0.85rem;
+          min-height: auto;
+        }
+        .vs-b {
+          flex-direction: row;
+          align-items: center;
+        }
+        .vl {
+          width: 30px;
+          height: 1px;
+        }
+        .vl.t {
+          background: linear-gradient(
+            to right,
+            transparent,
+            rgba(212, 168, 67, 0.38)
+          );
+        }
+        .vl.b {
+          background: linear-gradient(
+            to left,
+            transparent,
+            rgba(212, 168, 67, 0.38)
+          );
+        }
+        .cgrid {
+          grid-template-columns: 1fr;
+        }
+        .probs {
+          gap: 0.55rem;
+        }
+        .rw {
+          width: 78px;
+          height: 78px;
+        }
+        .prnum {
+          font-size: 1.05rem;
+        }
+      }
+      @media (max-width: 480px) {
+        .mh {
+          grid-template-columns: 1fr auto 1fr;
+          gap: 0.5rem;
+        }
+        .mhl,
+        .mhlf {
+          width: 50px;
+          height: 50px;
+        }
+        .probs {
+          grid-template-columns: repeat(3, 1fr);
+          gap: 0.45rem;
+        }
+        .h2hr {
+          grid-template-columns: 70px 1fr auto auto;
+        }
+        .h2hcomp {
+          font-size: 0.5rem;
+          padding: 0.12rem 0.3rem;
+        }
+        .rsi {
+          padding: 0 0.65rem 3.5rem;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <div class="bg">
+      <div class="bg-base"></div>
+      <div class="bg-grid"></div>
+      <div class="bg-vig"></div>
+      <div class="sweep"></div>
+      <div id="pts"></div>
+    </div>
+    <div class="flash" id="flash"></div>
+    {% if demo %}
+    <div class="dbadge">⚡ DEMO MODE</div>
+    {% endif %}
+
+    <!-- HUD -->
+    <div class="hud">
+      <div class="hud-l">
+        <svg class="hud-hex" viewBox="0 0 40 40">
+          <polygon
+            points="20,2 38,11 38,29 20,38 2,29 2,11"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.5"
+          />
+          <text
+            x="20"
+            y="25"
+            text-anchor="middle"
+            font-size="11"
+            font-family="Bebas Neue"
+            fill="currentColor"
+          >
+            IQ
+          </text>
+        </svg>
+        <div class="hud-brand">FOOTBALL<em>IQ</em></div>
+        <div class="hud-pill">AI PREDICTOR</div>
+      </div>
+      <div class="hud-r">
+        <div class="hud-stat"><b>45K+</b>MATCHES</div>
+        <div class="hud-div"></div>
+        <div class="hud-stat"><b>{{ teams|length }}</b>CLUBS</div>
+        <div class="hud-div"></div>
+        <div class="hud-stat"><b>5</b>LEAGUES</div>
+      </div>
+    </div>
+
+    <!-- STEPS -->
+    <div class="steps-bar">
+      <div class="step" id="s1">
+        <div class="snum" id="sn1">1</div>
+        Choose home team
+      </div>
+      <div class="sarr">→</div>
+      <div class="step" id="s2">
+        <div class="snum" id="sn2">2</div>
+        Choose away team
+      </div>
+      <div class="sarr">→</div>
+      <div class="step" id="s3">
+        <div class="snum" id="sn3">3</div>
+        Kick Off!
+      </div>
+    </div>
+
+    <!-- ARENA -->
+    <div class="arena">
+      <!-- HOME -->
+      <div class="panel home-panel" id="hp">
+        <div class="panel-role">
+          <div class="rdot"></div>
+          <span class="rtxt">HOME TEAM</span>
+        </div>
+        <div class="cs" id="hcs">
+          <div class="cs-shine"></div>
+          <div class="cs-top"></div>
+          <div class="cs-glow"></div>
+          <div class="lw">
+            <div class="lr"></div>
+            <div class="lr2"></div>
+            <div class="lph" id="h-ph">?</div>
+            <img class="limg" id="h-img" src="" alt="" style="display: none" />
+          </div>
+          <div class="cs-name" id="h-nm">SELECT HOME CLUB</div>
+          <div class="cs-league" id="h-lg">Search or scroll below ↓</div>
+          <div class="fr" id="h-form"></div>
+        </div>
+        <div class="sw">
+          <span class="si">⌕</span
+          ><input
+            type="text"
+            id="h-s"
+            placeholder="Search home club…"
+            autocomplete="off"
+          />
+        </div>
+        <div class="cl" id="h-list">
+          {% for team in teams %}
+          <div
+            class="ci"
+            data-team="{{ team }}"
+            onclick="pick('home','{{ team }}')"
+          >
+            <div class="ci-fb" id="hfb-{{ loop.index }}">
+              {{ team[:2].upper() }}
+            </div>
+            <div class="ci-info">
+              <span class="ci-name">{{ team }}</span
+              ><span class="ci-lg" id="hlg-{{ loop.index }}"></span>
+            </div>
+            <span class="ci-arr">›</span>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+
+      <!-- CENTER -->
+      <div class="cc">
+        <div class="vs-b">
+          <div class="vl t"></div>
+          <div class="vo">
+            <div class="vog"></div>
+            <span class="vt">VS</span>
+          </div>
+          <div class="vl b"></div>
+        </div>
+        <button class="ko" id="ko" onclick="doPredict()">
+          <div class="kobg"></div>
+          <span class="koball">⚽</span>
+          <span class="kolbl">KICK OFF</span>
+          <span class="kosub">PREDICT</span>
+        </button>
+        <p class="ctip">Pick both teams<br />then click above</p>
+        <div class="err" id="err"></div>
+      </div>
+
+      <!-- AWAY -->
+      <div class="panel away-panel" id="ap">
+        <div class="panel-role">
+          <div class="rdot"></div>
+          <span class="rtxt">AWAY TEAM</span>
+        </div>
+        <div class="cs" id="acs">
+          <div class="cs-shine"></div>
+          <div class="cs-top"></div>
+          <div class="cs-glow"></div>
+          <div class="lw">
+            <div class="lr"></div>
+            <div class="lr2"></div>
+            <div class="lph" id="a-ph">?</div>
+            <img class="limg" id="a-img" src="" alt="" style="display: none" />
+          </div>
+          <div class="cs-name" id="a-nm">SELECT AWAY CLUB</div>
+          <div class="cs-league" id="a-lg">Search or scroll below ↓</div>
+          <div class="fr" id="a-form"></div>
+        </div>
+        <div class="sw">
+          <span class="si">⌕</span
+          ><input
+            type="text"
+            id="a-s"
+            placeholder="Search away club…"
+            autocomplete="off"
+          />
+        </div>
+        <div class="cl" id="a-list">
+          {% for team in teams %}
+          <div
+            class="ci"
+            data-team="{{ team }}"
+            onclick="pick('away','{{ team }}')"
+          >
+            <div class="ci-fb" id="afb-{{ loop.index }}">
+              {{ team[:2].upper() }}
+            </div>
+            <div class="ci-info">
+              <span class="ci-name">{{ team }}</span
+              ><span class="ci-lg" id="alg-{{ loop.index }}"></span>
+            </div>
+            <span class="ci-arr">›</span>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+    <!-- LOADING -->
+    <div class="ov" id="ov">
+      <div class="ovbox">
+        <div class="ovball">⚽</div>
+        <div class="ovtit">ANALYSING MATCH DATA</div>
+        <div class="ovprog"><div class="ovbar" id="ovbar"></div></div>
+        <div class="ovmsg" id="ovmsg">Processing historical data…</div>
+      </div>
+    </div>
+
+    <!-- RESULT -->
+    <div class="rs" id="rs">
+      <div class="rsi">
+        <div class="rshud">
+          <div class="rsbrand">FOOTBALL<em>IQ</em></div>
+          <button class="backbtn" onclick="goBack()">‹ NEW MATCH</button>
+        </div>
+        <!-- match header -->
+        <div class="mh">
+          <div class="mh-gl"></div>
+          <div class="mh-gr"></div>
+          <div class="mh-t mh-ht">
+            <img class="mhl" id="mh-hi" src="" alt="" style="display: none" />
+            <div class="mhlf" id="mh-hf" style="display: none"></div>
+            <div class="mhn" id="mh-hn"></div>
+          </div>
+          <div class="mhc">
+            <div class="mhvs">VS</div>
+            <div class="vbadge" id="vbadge"></div>
+            <div class="ctag" id="ctag"></div>
+          </div>
+          <div class="mh-t mh-at">
+            <img class="mhl" id="mh-ai" src="" alt="" style="display: none" />
+            <div class="mhlf" id="mh-af" style="display: none"></div>
+            <div class="mhn" id="mh-an"></div>
+          </div>
+        </div>
+        <!-- probs -->
+        <div class="probs">
+          <div class="pc ph-c" id="pch">
+            <div class="pclbl" id="phl">HOME WIN</div>
+            <div class="rw">
+              <svg class="pring" viewBox="0 0 120 120">
+                <circle cx="60" cy="60" r="50" class="prbg" />
+                <circle cx="60" cy="60" r="50" class="prfill" id="rh" />
+              </svg>
+              <div class="prnum" id="rvh">0%</div>
+            </div>
+            <div class="pctag" id="pht"></div>
+          </div>
+          <div class="pc pd-c" id="pcd">
+            <div class="pclbl">DRAW</div>
+            <div class="rw">
+              <svg class="pring" viewBox="0 0 120 120">
+                <circle cx="60" cy="60" r="50" class="prbg" />
+                <circle cx="60" cy="60" r="50" class="prfill" id="rd" />
+              </svg>
+              <div class="prnum" id="rvd">0%</div>
+            </div>
+            <div class="pctag">—</div>
+          </div>
+          <div class="pc pa-c" id="pca">
+            <div class="pclbl" id="pal">AWAY WIN</div>
+            <div class="rw">
+              <svg class="pring" viewBox="0 0 120 120">
+                <circle cx="60" cy="60" r="50" class="prbg" />
+                <circle cx="60" cy="60" r="50" class="prfill" id="ra" />
+              </svg>
+              <div class="prnum" id="rva">0%</div>
+            </div>
+            <div class="pctag" id="pat"></div>
+          </div>
+        </div>
+        <!-- data -->
+        <div class="cgrid">
+          <div class="card">
+            <div class="ch">
+              RECENT FORM<span class="chsub">LAST 5 MATCHES</span>
+            </div>
+            <div id="fcwrap"></div>
+          </div>
+          <div class="card">
+            <div class="ch">
+              TEAM STATS<span class="chsub">6-MATCH AVG</span>
+            </div>
+            <div id="stwrap"></div>
+          </div>
+          <div class="card cwide">
+            <div class="ch">
+              HEAD TO HEAD<span class="chsub" id="h2hct"></span>
+            </div>
+            <div id="h2hsum"></div>
+            <div class="h2hlist" id="h2hwrap"></div>
+            <div class="h2hnote" id="h2hnote" style="display: none">
+              ⓘ Run <b>generate_h2h.py</b> in Colab and place
+              <b>h2h_data.json</b> in <b>models/</b> for full H2H coverage (45K+
+              matches).
+            </div>
+          </div>
+        </div>
+        <button class="backbot" onclick="goBack()">
+          ‹ PREDICT ANOTHER MATCH
+        </button>
+      </div>
+    </div>
+
+    <script type="application/json" id="tl-data">
+      {{ team_leagues|safe }}
+    </script>
+    <script>
+      // ── TEAM LEAGUES from Flask ──────────────────────
+      const TEAM_LEAGUES = JSON.parse(
+        document.getElementById("tl-data").textContent,
+      );
+
+      // ── LOGOS (comprehensive) ────────────────────────
+      // ── Logos served from local Flask /logo/<team> — no CORS issues ──
+      function getLogo(team, big) {
+        // Encode team name for URL; Flask decodes it and fetches from TheSportsDB
+        const size = big ? "?size=big" : "";
+        return "/logo/" + encodeURIComponent(team) + size;
+      }
+
+      // ── PARTICLES ───────────────────────────────────
+      (() => {
+        const c = document.getElementById("pts");
+        for (let i = 0; i < 48; i++) {
+          const p = document.createElement("div");
+          p.className = "pt";
+          p.style.cssText = `left:${Math.random() * 100}%;width:${Math.random() * 2 + 0.4}px;height:${Math.random() * 2 + 0.4}px;animation-delay:${Math.random() * 10}s;animation-duration:${Math.random() * 14 + 12}s;opacity:${Math.random() * 0.28 + 0.04}`;
+          c.appendChild(p);
+        }
+      })();
+
+      // ── INJECT LOGOS & LEAGUES INTO LISTS ───────────
+      (() => {
+        ["h-list", "a-list"].forEach((lid) => {
+          const pfx = lid === "h-list" ? "h" : "a";
+          document.querySelectorAll(`#${lid} .ci`).forEach((el, i) => {
+            const team = el.dataset.team;
+            const url = getLogo(team);
+            const league = TEAM_LEAGUES[team] || "";
+            // league span
+            const lgEl = el.querySelector(".ci-lg");
+            if (lgEl) lgEl.textContent = league;
+            // logo
+            const fbEl = el.querySelector(".ci-fb");
+            if (url && fbEl) {
+              const img = document.createElement("img");
+              img.className = "ci-logo";
+              img.loading = "lazy";
+              img.src = url;
+              img.alt = team;
+              img.onerror = () => (img.style.display = "none");
+              fbEl.replaceWith(img);
+            }
+          });
+        });
+      })();
+
+      // ── STATE ────────────────────────────────────────
+      let homeTeam = null,
+        awayTeam = null;
+
+      function updSteps() {
+        document.getElementById("sn1").className =
+          "snum" + (homeTeam ? " done" : "");
+        document.getElementById("sn2").className =
+          "snum" + (awayTeam ? " done" : "");
+        document.getElementById("sn3").className =
+          "snum" + (homeTeam && awayTeam ? " done" : "");
+      }
+
+      // ── PICK ─────────────────────────────────────────
+      function pick(side, team) {
+        if (side === "home") homeTeam = team;
+        else awayTeam = team;
+        const h = side === "home";
+        const panel = document.getElementById(h ? "hp" : "ap");
+        panel.classList.add("sel");
+        const url = getLogo(team);
+        const img = document.getElementById(h ? "h-img" : "a-img");
+        const ph = document.getElementById(h ? "h-ph" : "a-ph");
+        if (url) {
+          img.src = getLogo(team, true);
+          img.alt = team;
+          img.style.display = "block";
+          ph.style.display = "none";
+          img.classList.remove("lpop");
+          void img.offsetWidth;
+          img.classList.add("lpop");
+        } else {
+          img.style.display = "none";
+          ph.style.display = "flex";
+          ph.textContent = team.slice(0, 2).toUpperCase();
+        }
+        document.getElementById(h ? "h-nm" : "a-nm").textContent =
+          team.toUpperCase();
+        document.getElementById(h ? "h-lg" : "a-lg").textContent =
+          TEAM_LEAGUES[team] || "European Football";
+        const listId = h ? "h-list" : "a-list";
+        document
+          .querySelectorAll(`#${listId} .ci`)
+          .forEach((el) =>
+            el.classList.toggle("active", el.dataset.team === team),
+          );
+        const ac = document.querySelector(`#${listId} .ci.active`);
+        if (ac) ac.scrollIntoView({ block: "nearest", behavior: "smooth" });
+        document.getElementById("err").textContent = "";
+        updSteps();
+        if (homeTeam && awayTeam)
+          document.getElementById("ko").classList.add("ready");
+      }
+
+      // ── SEARCH ──────────────────────────────────────
+      [
+        ["h-s", "h-list"],
+        ["a-s", "a-list"],
+      ].forEach(([si, li]) => {
+        document.getElementById(si).addEventListener("input", function () {
+          const q = this.value.toLowerCase();
+          document.querySelectorAll(`#${li} .ci`).forEach((el) => {
+            const t = el.dataset.team.toLowerCase();
+            const l = (TEAM_LEAGUES[el.dataset.team] || "").toLowerCase();
+            el.style.display = t.includes(q) || l.includes(q) ? "" : "none";
+          });
+        });
+      });
+
+      // ── PREDICT ─────────────────────────────────────
+      const MSGS = [
+        "Scanning 45,000+ historical matches…",
+        "Building rolling form features…",
+        "Running XGBoost ensemble model…",
+        "Calibrating probabilities…",
+        "Generating match report…",
+      ];
+
+      async function doPredict() {
+        const err = document.getElementById("err");
+        err.textContent = "";
+        if (!homeTeam || !awayTeam) {
+          showErr("Select both teams first");
+          return;
+        }
+        if (homeTeam === awayTeam) {
+          showErr("Select two different teams");
+          return;
+        }
+        const ov = document.getElementById("ov");
+        const bar = document.getElementById("ovbar");
+        const msg = document.getElementById("ovmsg");
+        ov.classList.add("show");
+        bar.style.width = "0%";
+        let mi = 0;
+        const mit = setInterval(() => {
+          if (mi < MSGS.length) msg.textContent = MSGS[mi++];
+        }, 620);
+        let pct = 0;
+        const bt = setInterval(() => {
+          pct = Math.min(pct + Math.random() * 9, 88);
+          bar.style.width = pct + "%";
+        }, 200);
+        try {
+          const res = await fetch("/predict", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ home_team: homeTeam, away_team: awayTeam }),
+          });
+          clearInterval(mit);
+          clearInterval(bt);
+          if (!res.ok) {
+            let em = "Error " + res.status;
+            try {
+              const j = await res.json();
+              em = j.error || em;
+            } catch (e) {}
+            ov.classList.remove("show");
+            showErr(em);
+            return;
+          }
+          const data = await res.json();
+          if (data.error) {
+            ov.classList.remove("show");
+            showErr(data.error);
+            return;
+          }
+          bar.style.width = "100%";
+          await sleep(340);
+          ov.classList.remove("show");
+          bar.style.width = "0%";
+          flashFx();
+          await sleep(160);
+          render(data);
+        } catch (e) {
+          clearInterval(mit);
+          clearInterval(bt);
+          ov.classList.remove("show");
+          showErr("Cannot reach Flask server on port 5000");
+        }
+      }
+
+      function showErr(m) {
+        const el = document.getElementById("err");
+        el.textContent = m;
+        el.classList.remove("shk");
+        void el.offsetWidth;
+        el.classList.add("shk");
+      }
+      const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+      function flashFx() {
+        const f = document.getElementById("flash");
+        f.classList.add("on");
+        setTimeout(() => f.classList.remove("on"), 300);
+      }
+
+      // ── RENDER ───────────────────────────────────────
+      function render(d) {
+        // match header
+        setHL("mh-hi", "mh-hf", d.home_team);
+        setHL("mh-ai", "mh-af", d.away_team);
+        document.getElementById("mh-hn").textContent =
+          d.home_team.toUpperCase();
+        document.getElementById("mh-an").textContent =
+          d.away_team.toUpperCase();
+        const vb = document.getElementById("vbadge");
+        vb.textContent = d.prediction.toUpperCase();
+        vb.className =
+          "vbadge " +
+          (d.prediction === "Home Win"
+            ? "vh"
+            : d.prediction === "Draw"
+              ? "vd"
+              : "va");
+        document.getElementById("ctag").textContent =
+          d.confidence + "% CONFIDENCE";
+
+        // winner ring
+        ["pch", "pcd", "pca"].forEach(
+          (id) =>
+            (document.getElementById(id).className = document
+              .getElementById(id)
+              .className.replace(/ winner-[hda]/g, "")),
+        );
+        if (d.prediction === "Home Win")
+          document.getElementById("pch").classList.add("winner-h");
+        else if (d.prediction === "Draw")
+          document.getElementById("pcd").classList.add("winner-d");
+        else document.getElementById("pca").classList.add("winner-a");
+
+        document.getElementById("phl").textContent =
+          d.home_team.toUpperCase() + " WIN";
+        document.getElementById("pal").textContent =
+          d.away_team.toUpperCase() + " WIN";
+        document.getElementById("pht").textContent = d.home_team;
+        document.getElementById("pat").textContent = d.away_team;
+
+        // form
+        const fc = document.getElementById("fcwrap");
+        fc.innerHTML = "";
+        [
+          { t: d.home_team, f: d.home_form },
+          { t: d.away_team, f: d.away_form },
+        ].forEach(({ t, f }) => {
+          const row = document.createElement("div");
+          row.className = "fcrow";
+          const url = getLogo(t);
+          if (url) {
+            const img = document.createElement("img");
+            img.className = "fcli";
+            img.loading = "lazy";
+            img.src = url;
+            img.alt = t;
+            img.onerror = () => (img.style.display = "none");
+            row.appendChild(img);
+          } else {
+            const fb = document.createElement("div");
+            fb.className = "fclif";
+            fb.textContent = t.slice(0, 2).toUpperCase();
+            row.appendChild(fb);
+          }
+          const nm = document.createElement("span");
+          nm.className = "fcn";
+          nm.textContent = t;
+          row.appendChild(nm);
+          const bd = document.createElement("div");
+          bd.className = "fcbd";
+          (f || []).forEach((r) => {
+            const s = document.createElement("span");
+            s.className = `fb ${r}`;
+            s.textContent = r;
+            bd.appendChild(s);
+          });
+          row.appendChild(bd);
+          fc.appendChild(row);
+        });
+
+        // stats
+        const st = document.getElementById("stwrap");
+        st.innerHTML = "";
+        const hs = d.home_stats || {},
+          as_ = d.away_stats || {};
+        Object.keys(hs).forEach((k) => {
+          const hv = hs[k] || 0,
+            av = as_[k] || 0,
+            tot = Math.max(hv + av, 0.001);
+          const hp = ((hv / tot) * 100).toFixed(1),
+            ap = ((av / tot) * 100).toFixed(1);
+          st.innerHTML += `<div class="strow"><span class="sthv">${hv}</span><div class="stctr"><div class="stbar"><div class="stbh" data-w="${hp}%"></div><div class="stba" data-w="${ap}%"></div></div><span class="stk">${k}</span></div><span class="stav">${av}</span></div>`;
+        });
+
+        // H2H
+        const h2h = d.h2h || [];
+        const sum = d.h2h_summary;
+        const hw = document.getElementById("h2hwrap");
+        const sw = document.getElementById("h2hsum");
+        const note = document.getElementById("h2hnote");
+        const ct = document.getElementById("h2hct");
+
+        if (h2h.length && sum) {
+          ct.textContent = `LAST ${h2h.length} MEETINGS`;
+          const tot = sum.total;
+          const hwp = ((sum.home_wins / tot) * 100).toFixed(1);
+          const drp = ((sum.draws / tot) * 100).toFixed(1);
+          const awp = ((sum.away_wins / tot) * 100).toFixed(1);
+          sw.innerHTML = `
+      <div class="h2hsum">
+        <div class="h2hst hl"><span class="h2hw">${sum.home_wins}</span><span class="h2hwl">${sum.home.toUpperCase()} WINS</span></div>
+        <div class="h2hsc"><span class="h2hd">${sum.draws}</span><span class="h2hdl">DRAWS</span></div>
+        <div class="h2hst al"><span class="h2hw">${sum.away_wins}</span><span class="h2hwl">${sum.away.toUpperCase()} WINS</span></div>
+      </div>
+      <div class="h2hbar"><div class="h2hbh" style="width:0%" data-w="${hwp}%"></div><div class="h2hbd" style="width:0%" data-w="${drp}%"></div><div class="h2hba" style="width:0%" data-w="${awp}%"></div></div>`;
+          note.style.display = "none";
+        } else {
+          sw.innerHTML = "";
+          note.style.display = "block";
+          ct.textContent = "";
+        }
+
+        hw.innerHTML =
+          h2h.length === 0
+            ? '<div class="h2hem">No head-to-head records in the database for this fixture.</div>'
+            : h2h
+                .map(
+                  (
+                    m,
+                    i,
+                  ) => `<div class="h2hr ${m.outcome}" style="animation-delay:${i * 0.06}s">
+      <span class="h2hdate">${m.date}</span>
+      <div class="h2hmatch"><span class="h2hht">${m.home}</span><span class="h2hsc2">${m.score}</span><span class="h2hat">${m.away}</span></div>
+      <span class="h2hbdg ${m.outcome}">${m.outcome.toUpperCase()}</span>
+      <span class="h2hcomp">${m.league || ""}</span>
+    </div>`,
+                )
+                .join("");
+
+        document.getElementById("rs").classList.add("show");
+        setTimeout(() => {
+          animR("rh", d.prob_home, "#4f9cf9");
+          animR("rd", d.prob_draw, "#9b72e8");
+          animR("ra", d.prob_away, "#ff6635");
+          cu("rvh", d.prob_home);
+          cu("rvd", d.prob_draw);
+          cu("rva", d.prob_away);
+          document
+            .querySelectorAll(".stbh")
+            .forEach((b) => (b.style.width = b.dataset.w));
+          document
+            .querySelectorAll(".stba")
+            .forEach((b) => (b.style.width = b.dataset.w));
+          document
+            .querySelectorAll(".h2hbh")
+            .forEach((b) => (b.style.width = b.dataset.w));
+          document
+            .querySelectorAll(".h2hbd")
+            .forEach((b) => (b.style.width = b.dataset.w));
+          document
+            .querySelectorAll(".h2hba")
+            .forEach((b) => (b.style.width = b.dataset.w));
+        }, 360);
+        window.scrollTo(0, 0);
+      }
+
+      function setHL(imgId, fbId, team) {
+        const url = getLogo(team);
+        const img = document.getElementById(imgId);
+        const fb = document.getElementById(fbId);
+        if (url) {
+          img.src = getLogo(team, true);
+          img.alt = team;
+          img.style.display = "block";
+          fb.style.display = "none";
+        } else {
+          img.style.display = "none";
+          fb.style.display = "flex";
+          fb.textContent = team.slice(0, 2).toUpperCase();
+        }
+      }
+      function animR(id, pct, color) {
+        const el = document.getElementById(id);
+        el.style.stroke = color;
+        el.style.strokeDasharray = `${(pct / 100) * 314} 314`;
+      }
+      function cu(id, target) {
+        const el = document.getElementById(id);
+        let c = 0;
+        const step = target / 60;
+        const t = setInterval(() => {
+          c = Math.min(c + step, target);
+          el.textContent = c.toFixed(1) + "%";
+          if (c >= target) clearInterval(t);
+        }, 17);
+      }
+      function goBack() {
+        flashFx();
+        setTimeout(() => {
+          document.getElementById("rs").classList.remove("show");
+          window.scrollTo(0, 0);
+        }, 150);
+      }
+    </script>
+  </body>
+</html>
